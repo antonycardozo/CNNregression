@@ -3,29 +3,30 @@ import numpy as np
 from tqdm import tqdm 
 from skimage.transform import resize
 import pandas as pd
+import cv2 as cv
 
-def apply_mask_1500(img):
-    TARGET = 1500
-    H, W = img.shape
-    img = img.astype(np.float32) 
-    mask = np.zeros((TARGET, TARGET),dtype=np.float32)
-
-    offset_y = (TARGET - H) // 2
-    offset_x = (TARGET - W) // 2
-
-    mask[offset_y : offset_y + H, offset_x : offset_x + W] = img
-    return mask
+def apply_mask(imagen, size=1500):
+    masks=[]
+    for img in imagen:
+        img = img.astype(np.float32)
+        H, W = img.shape
+        img = img.astype(np.float32) 
+        mask = np.zeros((size, size),dtype=np.float32)
+        offset_y = (size - H) // 2
+        offset_x = (size - W) // 2
+        mask[offset_y : offset_y + H, offset_x : offset_x + W] = img
+        masks.append(mask)
+    return masks
 
 def preprocessing (channel_1, channel_2, height_shape, width_shape):
     X=[]
     
     for i in range(len(channel_1)):
         # aplicar máscara
-        img_optir = apply_mask_1500(channel_1[i]).astype(np.float32)
-        img_dc    = apply_mask_1500(channel_2[i]).astype(np.float32)
+
         # Redimensionar a height × width
-        img_optir = resize(img_optir,(height_shape, width_shape), preserve_range=True, anti_aliasing=True)
-        img_dc = resize(img_dc,(height_shape, width_shape), preserve_range=True, anti_aliasing=True)
+        img_optir = resize(channel_1[i],(height_shape, width_shape), preserve_range=True, anti_aliasing=True)
+        img_dc = resize(channel_2[i],(height_shape, width_shape), preserve_range=True, anti_aliasing=True)
         # Añadir canal 
         img_optir = img_optir.reshape(height_shape, width_shape, 1)
         img_dc = img_dc.reshape(height_shape, width_shape, 1)
@@ -35,7 +36,17 @@ def preprocessing (channel_1, channel_2, height_shape, width_shape):
     X = np.array(X, dtype=np.float32)
     return X            
     
-
+def filter(imagen, greater_than= True, threshold= 4.1):
+    filtered_images = []
+    for img in imagen:
+        if greater_than:
+            filter_arr = img >  threshold
+        else:
+            filter_arr = img <  threshold
+        
+        filtered_images.append(img[filter_arr])
+    return filtered_images
+    
 def load_data(data_path, height_shape=128, width_shape=128):
     channel_1 = []
     channel_2 =[]
@@ -68,3 +79,4 @@ def load_data(data_path, height_shape=128, width_shape=128):
     Y = np.array(Y, dtype=int)
 
     return channel_1,channel_2, Y
+
