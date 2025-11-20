@@ -40,11 +40,11 @@ def filter(imagen, greater_than= True, threshold= 4.1):
     filtered_images = []
     for img in imagen:
         if greater_than:
-            filter_arr = img >  threshold
+            img[:, np.all(img > threshold, axis = 0)]
         else:
-            filter_arr = img <  threshold
+            img[:, np.all(img < threshold, axis = 0)]
         
-        filtered_images.append(img[filter_arr])
+        filtered_images.append(img)
     return filtered_images
     
 def load_data(data_path, height_shape=128, width_shape=128):
