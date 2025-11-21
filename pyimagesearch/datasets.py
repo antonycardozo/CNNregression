@@ -36,15 +36,38 @@ def preprocessing (channel_1, channel_2, height_shape, width_shape):
     X = np.array(X, dtype=np.float32)
     return X            
     
-def filter(imagen, greater_than= True, threshold= 4.1):
+import numpy as np
+
+def filter_images(imagenes, greater_than=True, threshold=4.1):
     filtered_images = []
-    for img in imagen:
-        if greater_than:
-            img[:, np.all(img > threshold, axis = 0)]
+
+    for img in imagenes:
+
+        # Caso 1: imagen 2D -> (H, W)
+        if img.ndim == 2:
+            if greater_than:
+                mask = np.all(img > threshold, axis=0)
+            else:
+                mask = np.all(img < threshold, axis=0)
+
+            mask = ~mask  # mantenemos las columnas que NO cumplen la condición
+            img_filtrada = img[:, mask]
+
+        # Caso 2: imagen 3D -> (H, W, C)
+        elif img.ndim == 3:
+            if greater_than:
+                mask = np.all(img > threshold, axis=0)
+            else:
+                mask = np.all(img < threshold, axis=0)
+
+            mask = ~mask
+            img_filtrada = img[:, mask, :]
+
         else:
-            img[:, np.all(img < threshold, axis = 0)]
-        
-        filtered_images.append(img)
+            raise ValueError(f"Formato de imagen no soportado: {img.shape}")
+
+        filtered_images.append(img_filtrada)
+
     return filtered_images
     
 def load_data(data_path, height_shape=128, width_shape=128):
