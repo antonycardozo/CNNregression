@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm 
 from skimage.transform import resize
 import pandas as pd
-import cv2 as cv
+import cv2 
 
 def apply_mask(imagen, size=1500):
     masks=[]
@@ -69,6 +69,22 @@ def filter_images(imagenes, greater_than=True, threshold=4.1):
         filtered_images.append(img_filtrada)
 
     return filtered_images
+
+def invert_DC(image_file):
+    invertes_images =[]
+    for img in image_file:
+        invertes_images.append(8.21179 - img)
+    # image_i = ~ image_src 
+    return invertes_images
+
+def apply_thresholding(image_file, threshold):
+    thresh_images =[]
+    for img in image_file:
+        retval, channel_wit_threshold = cv2.threshold(img, thresh=threshold, maxval=2000, type=cv2.THRESH_TOZERO)
+        thresh_images.append(channel_wit_threshold)
+        
+    return thresh_images
+        
     
 def load_data(data_path, height_shape=128, width_shape=128):
     channel_1 = []
@@ -102,4 +118,105 @@ def load_data(data_path, height_shape=128, width_shape=128):
     Y = np.array(Y, dtype=int)
 
     return channel_1,channel_2, Y
+
+
+
+def global_normalize(images, low_percentile=1, high_percentile=99.99):
+    """
+    images: lista de arrays numpy (H, W)
+    Este método calcula percentiles globales e intenta preservar la mayor cantidad de información.
+    """
+
+    # 1) Convertir lista → un solo array (N, H, W)
+    stack = np.array(images)
+    
+    # 2) Obtener percentiles globales
+    p_low = np.percentile(stack, low_percentile)
+    p_high = np.percentile(stack, high_percentile)
+
+    print(f"Usando rango global [{p_low:.3f}, {p_high:.3f}]")
+
+    # 3) Clipping global
+    stack_clipped = np.clip(stack, p_low, p_high)
+
+    # 4) Normalización global a 0–1
+    normalized = (stack_clipped - p_low) / (p_high - p_low)
+
+    # 5) Volver a lista si lo necesitas
+    normalized_list = [normalized[i] for i in range(len(images))]
+
+    print(p_high)
+    return normalized_list 
+
+
+def clipping_log_norma(images, low=0, high=99.99995):
+    """
+    Aplica clipping + log-normalización a una lista de imágenes.
+    
+    Parámetros:
+        images: lista de arrays numpy (2D o 3D)
+        low, high: percentiles para clipping
+    
+    Retorna:
+        lista de imágenes normalizadas entre 0 y 1
+    """
+
+    normalized_list = []
+
+    for img in images:
+        img = np.array(img)
+
+        # 1. Clipping por percentiles
+        p_low = np.percentile(img, low)
+        p_high = np.percentile(img, high)
+        img_clip = np.clip(img, p_low, p_high)
+
+        # 2. Transformación logarítmica
+        img_log = np.log1p(img_clip)
+
+        # 3. Normalización min–max
+        img_norm = (img_log - img_log.min()) / (img_log.max() - img_log.min())
+
+        normalized_list.append(img_norm)
+
+    print(p_high)
+    return normalized_list
+
+def log_normalize(images):
+    """
+    Normaliza una lista de imágenes usando escala logarítmica
+    y luego min-max global.
+    Retorna:
+      - lista de imágenes normalizadas en rango 0-1
+      - min_val y max_val globales
+    """
+    # 1) Aplanar todo para calcular min y max globales
+    all_pixels = np.concatenate([img.ravel() for img in images])
+    
+    # 2) Aplicar log1p globalmente
+    log_all = np.log1p(all_pixels)
+
+    min_val = log_all.min()
+    max_val = log_all.max()
+
+    # 3) Normalizar cada imagen usando ese min/max
+    normalized_images = []
+    for img in images:
+        log_img = np.log1p(img)
+        norm_img = (log_img - min_val) / (max_val - min_val)
+        normalized_images.append(norm_img)
+
+    return normalized_images
+
+
+def normalize_sqrt(images):
+    normalized = []
+    # max global
+    max_val = np.max([np.max(img) for img in images])
+    
+    for img in images:
+        img_sqrt = np.sqrt(img)
+        normalized.append(img_sqrt / np.sqrt(max_val))
+    print(max_val)
+    return normalized
 
