@@ -9,9 +9,10 @@ from keras.layers import Dense
 from keras.layers import Flatten
 from keras.layers import Input
 from keras.models import Model
+from keras.layers import GlobalAveragePooling2D
 
 
-def create_cnn(width, height, depth, filters=(16, 32, 64), regress=False):
+def create_cnn(width, height, depth, filters=(32, 32, 64), regress=False):
 	# initialize the input shape and channel dimension, assuming
 	# TensorFlow/channels-last ordering
     inputShape = (height, width, depth)
@@ -33,17 +34,17 @@ def create_cnn(width, height, depth, filters=(16, 32, 64), regress=False):
         x = MaxPooling2D(pool_size=(2, 2))(x)
     # flatten the volume, then FC => RELU => BN => DROPOUT
     x = Flatten()(x)
-    x = Dense(16)(x)
+    x = Dense(32)(x)
     x = Activation("relu")(x)
     x = BatchNormalization(axis=chanDim)(x)
     x = Dropout(0.5)(x)
 	# apply another FC layer, this one to match the number of nodes
 	# coming out of the MLP
-    x = Dense(4)(x)
+    x = Dense(32)(x)
     x = Activation("relu")(x)
 	# check to see if the regression node should be added
     if regress:
-        x = Dense(1, activation="linear")(x)
+        x = Dense(1, activation="sigmoid")(x)
 	# construct the CNN
     model = Model(inputs, x)
 	# return the CNN

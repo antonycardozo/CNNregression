@@ -70,10 +70,18 @@ def filter_images(imagenes, greater_than=True, threshold=4.1):
 
     return filtered_images
 
-def invert_DC(image_file):
-    invertes_images =[]
-    for img in image_file:
-        invertes_images.append(8.21179 - img)
+def invert_DC(images):
+    # Convertimos todo a float pero SIN apilar
+    imgs_np = [np.array(img, dtype=float) for img in images]
+
+    # Máximo global entre todas las imágenes y todos los pixeles
+    max_val = max(img.max() for img in imgs_np)
+
+    inverted = []
+    for img in imgs_np:
+        inverted.append(max_val - img)
+
+    return inverted
     # image_i = ~ image_src 
     return invertes_images
 
@@ -112,10 +120,10 @@ def load_data(data_path, height_shape=128, width_shape=128):
             img_dc = pd.read_csv(dc_excel, header=None).to_numpy(dtype=np.float32)
             channel_2.append(img_dc)
             # === LABEL desde el nombre ===
-            label = int(fname.split("_")[0])
+            label = float(fname.split("_")[0])
             Y.append(label)
     
-    Y = np.array(Y, dtype=int)
+    Y = np.array(Y, dtype=float)
 
     return channel_1,channel_2, Y
 
@@ -149,7 +157,7 @@ def global_normalize(images, low_percentile=1, high_percentile=99.99):
     return normalized_list 
 
 
-def clipping_log_norma(images, low=0, high=99.99995):
+def clipping_log_norma(images, low=2, high=99.99):
     """
     Aplica clipping + log-normalización a una lista de imágenes.
     
@@ -176,6 +184,24 @@ def clipping_log_norma(images, low=0, high=99.99995):
 
         # 3. Normalización min–max
         img_norm = (img_log - img_log.min()) / (img_log.max() - img_log.min())
+
+        normalized_list.append(img_norm)
+
+    print(p_high)
+    return normalized_list
+
+def clipping_maxmin_norma(images, low=3, high=99.99):
+    normalized_list = []
+    all_pixels = np.concatenate([img.ravel() for img in images])
+    
+    p_low = np.percentile(all_pixels, low)
+    p_high = np.percentile(all_pixels, high)
+    for img in images:
+        img = np.array(img)
+        img_clip = np.clip(img, p_low, p_high)
+
+        # 3. Normalización min–max
+        img_norm = (img_clip - img_clip.min()) / (img_clip.max() - img_clip.min())
 
         normalized_list.append(img_norm)
 
@@ -220,3 +246,43 @@ def normalize_sqrt(images):
     print(max_val)
     return normalized
 
+import numpy as np
+
+def global_log_normalize(images, low_percentile=1, high_percentile=99.99):
+    """
+    Normaliza imágenes de distinto tamaño a [0,1] usando percentiles globales.
+    """
+
+    # --- 1. Obtener todos los píxeles para los percentiles globales ---
+    all_pixels = np.concatenate([img.ravel() for img in images])
+    p_low = np.percentile(all_pixels, low_percentile)
+    p_high = np.percentile(all_pixels, high_percentile)
+
+    print(f"Usando clipping global [{p_low:.4f}, {p_high:.4f}]")
+
+    # --- 2. Primer pase: calcular min y max globales después del log ---
+    logs_min = float("inf")
+    logs_max = -float("inf")
+
+    logged_images = []  # guardamos temporalmente para evitar recomputación
+
+    for img in images:
+        clipped = np.clip(img, p_low, p_high)
+        logged = np.log1p(clipped)
+        logged_images.append(logged)
+
+        # actualizar extremos globales
+        logs_min = min(logs_min, logged.min())
+        logs_max = max(logs_max, logged.max())
+
+    # Evitar división entre cero
+    if logs_max == logs_min:
+        raise ValueError("Los valores después del log son constantes. No es posible normalizar.")
+
+    # --- 3. Normalización final (global min-max) ---
+    normalized_list = [
+        (logged - logs_min) / (logs_max - logs_min)
+        for logged in logged_images
+    ]
+
+    return normalized_list
