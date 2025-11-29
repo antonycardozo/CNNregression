@@ -12,7 +12,7 @@ from keras.models import Model
 from keras.layers import GlobalAveragePooling2D
 
 
-def create_cnn(width, height, depth, filters=(32, 32, 64), regress=False):
+def create_cnn(width, height, depth, filters=(32, 64, 128, 256), regress=False):
 	# initialize the input shape and channel dimension, assuming
 	# TensorFlow/channels-last ordering
     inputShape = (height, width, depth)
@@ -27,22 +27,33 @@ def create_cnn(width, height, depth, filters=(32, 32, 64), regress=False):
 		# appropriately
         if i == 0:
             x = inputs
+            x = Conv2D(f, (3, 3), padding="valid")(x)
+            x = Activation("relu")(x)
+            x = BatchNormalization(axis=chanDim)(x)
+            x = MaxPooling2D(pool_size=(2, 2))(x)
+        else:
+            x = Conv2D(f, (3, 3), padding="valid")(x)
+            x = Activation("relu")(x)
+            x = BatchNormalization(axis=chanDim)(x)
+            x = MaxPooling2D(pool_size=(2, 2))(x)
 		# CONV => RELU => BN => POOL
-        x = Conv2D(f, (3, 3), padding="same")(x)
-        x = Activation("relu")(x)
-        x = BatchNormalization(axis=chanDim)(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
+        
     # flatten the volume, then FC => RELU => BN => DROPOUT
-    x = Flatten()(x)
-    x = Dense(32)(x)
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(256)(x)
     x = Activation("relu")(x)
     x = BatchNormalization(axis=chanDim)(x)
     x = Dropout(0.5)(x)
 	# apply another FC layer, this one to match the number of nodes
+    x = Dense(128)(x)
+    x = Activation("relu")(x)
 	# coming out of the MLP
-    x = Dense(32)(x)
+ 
+    x = Dense(64)(x)
     x = Activation("relu")(x)
 	# check to see if the regression node should be added
+    x = Dense(32)(x)
+    x = Activation("relu")(x)
     if regress:
         x = Dense(1, activation="sigmoid")(x)
 	# construct the CNN
