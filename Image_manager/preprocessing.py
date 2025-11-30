@@ -15,6 +15,16 @@ def apply_mask(images, size=1500):
         images_plus_masks.append(mask)
     return images_plus_masks
 
+def dynamic_cropping(images, low_percentile=30):
+    cropped_images = []
+    
+    for img in images:
+        array_image= np.array(img)
+        value_cropping = np.percentile(array_image, low_percentile)
+        
+    return cropped_images
+    
+
 def merge (channel_1, channel_2, height_shape, width_shape):
     X=[]
     
@@ -31,32 +41,68 @@ def merge (channel_1, channel_2, height_shape, width_shape):
     X = np.array(X, dtype=np.float32)
     return X            
     
+def clipping_local(images, low_percentile = 0, high_percentile= 95):
+    clipped_images = []
 
+    # ---- 2. Procesar cada imagen ----
+    for img in images:
+        img = np.array(img)
+        # ---- 2A. Percentiles locales ----
+        low_local  = np.percentile(img, low_percentile)
+        high_local = np.percentile(img, high_percentile)
+
+        # ---- 2B. Clipping local ----
+        img_clip = np.clip(img, low_local, high_local)
+        clipped_images.append( img_clip)
+    
+    return clipped_images
+    
 def invert_channel(images):
-    # Convertimos todo a float pero SIN apilar
-    imgs_np = [np.array(img, dtype=float) for img in images]
-    # Máximo global entre todas las imágenes y todos los pixeles
-    max_val = max(img.max() for img in imgs_np)
+    all_pixels = np.concatenate([img.ravel() for img in images])
+   
     #almacenar imagenes invertidas de acuerodo al maximo global
     inverted_images = []
-    for img in imgs_np:
-        inverted_images.append(max_val - img)
+    for img in images:
+        inverted_images.append(all_pixels.max() - img)
 
     return inverted_images
 
+def log_normalize(images, low_percentile=2, high_percentile=99.99):
+    
+    normalized_list = []
+
+    all_pixels = np.concatenate([img.ravel() for img in images])
+    
+    value_low_percentile = np.percentile(all_pixels, low_percentile)
+    value_high_percentile = np.percentile(all_pixels, high_percentile)
+
+    for img in images:
+        img = np.array(img)
+        img_log = np.log1p(img)
+
+        #normalización global
+        img_norm = (img_log - np.log1p(value_low_percentile)) / (np.log1p(value_high_percentile)- np.log1p(value_low_percentile))
+
+        normalized_list.append(img_norm)
+
+    return normalized_list
 
 def apply_thresholding(images, threshold):
-    #aplicar umbaral
-    thresholded_images =[]
-    #solo funciona para filtrar los valores menores al umbral, los demas valores los mantiene iguales
+    thresholded_images = []
+
     for img in images:
-        retval, channel_thresholded = cv2.threshold(img, thresh=threshold, maxval=2000, type=cv2.THRESH_TOZERO)
-        thresholded_images.append(channel_thresholded)
-        
+        img = np.array(img, dtype=float)
+
+        # Crear imagen filtrada
+        th = np.where(img > threshold, img - threshold, 0)
+
+        thresholded_images.append(th)
+
     return thresholded_images
 
 
-def global_normalize(images, low_percentile=1, high_percentile=99.99):
+
+def global_normalize(images, low_percentile, high_percentile):
     """
     images: lista de arrays numpy (H, W)
     Este método calcula percentiles globales e intenta preservar la mayor cantidad de información.
@@ -84,31 +130,9 @@ def global_normalize(images, low_percentile=1, high_percentile=99.99):
     return normalized_list 
 
 
-def clipping_log_normalize(images, low_percentile=2, high_percentile=99.99):
-    
-    #Aplica clipping + log-normalización a una lista de imágenes.
-    normalized_list = []
 
-    for img in images:
-        img = np.array(img)
 
-        # 1. Clipping por percentiles
-        value_low_percentile = np.percentile(img, low_percentile)
-        value_high_percentile = np.percentile(img, high_percentile)
-        img_clip = np.clip(img, value_low_percentile, value_high_percentile)
-
-        # 2. Transformación logarítmica
-        img_log = np.log1p(img_clip)
-
-        # 3. Normalización min–max
-        img_norm = (img_log - img_log.min()) / (img_log.max() - img_log.min())
-
-        normalized_list.append(img_norm)
-
-    print(value_low_percentile, value_high_percentile)
-    return normalized_list
-
-def clipping_maxmin_normalize(images, low_percentile=0, high_percentile=100):
+def clipping_maxmin_normalize(images, low_percentile=0, high_percentile=100, Local= False):
     normalized_list = []
     all_pixels = np.concatenate([img.ravel() for img in images])
     
@@ -116,6 +140,10 @@ def clipping_maxmin_normalize(images, low_percentile=0, high_percentile=100):
     value_high_percentile = np.percentile(all_pixels, high_percentile)
     for img in images:
         img = np.array(img)
+        if Local:
+            value_low_percentile = np.percentile(img, low_percentile)
+            value_high_percentile = np.percentile(img, high_percentile)
+            
         img_clip = np.clip(img, value_low_percentile, value_high_percentile)
 
         # 3. Normalización min–max
@@ -140,21 +168,20 @@ def normalize_sqrt(images):
 
 
 
-def clipping_log_normalize(images, low_percentile=1, high_percentile=99.99):
+def clipping_log_normalize1(images, low_percentile=1, high_percentile=99.99):
     """
     Normaliza imágenes a [0,1] usando percentiles globales,
     excluyendo los ceros completamente del cálculo.
     """
-
-    # 1) Extraer todos los píxeles diferentes de cero
-    all_pixels = np.concatenate([img[img > 0].ravel() for img in images])
+    normalized_list = []
+    all_pixels = np.concatenate([img.ravel() for img in images])
+    # 2) Calcular percentiles globales sin incluir ceros
+    value_low_percentile = np.percentile(all_pixels, low_percentile)
+    value_high_percentile = np.percentile(all_pixels, high_percentile)
 
     if all_pixels.size == 0:
         raise ValueError("Todas las imágenes son cero.")
 
-    # 2) Calcular percentiles globales sin incluir ceros
-    value_low_percentile = np.percentile(all_pixels, low_percentile)
-    value_high_percentile = np.percentile(all_pixels, high_percentile)
 
     print(f"Usando clipping global sin ceros [{value_low_percentile:.4f}, {value_high_percentile:.4f}]")
 
@@ -181,8 +208,6 @@ def clipping_log_normalize(images, low_percentile=1, high_percentile=99.99):
     if logs_max == logs_min:
         raise ValueError("Los valores no permiten normalización.")
 
-    # 4) Normalización final (mantener ceros como ceros)
-    normalized_list = []
     for logged in logged_images:
         norm = np.zeros_like(logged, dtype=float)
         mask = logged > 0

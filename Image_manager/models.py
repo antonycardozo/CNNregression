@@ -37,7 +37,9 @@ def create_cnn(width, height, depth, filters=(32, 64, 128, 512), regress=False):
             x = BatchNormalization(axis=chanDim)(x)
             x = MaxPooling2D(pool_size=(2, 2))(x)
 		# CONV => RELU => BN => POOL
-        
+
+                
+    # CONV => RELU => BN => PO
     # flatten the volume, then FC => RELU => BN => DROPOUT
     x = GlobalAveragePooling2D()(x)
     x = Dense(512)(x)
@@ -47,10 +49,10 @@ def create_cnn(width, height, depth, filters=(32, 64, 128, 512), regress=False):
 	# apply another FC layer, this one to match the number of nodes
 	# coming out of the MLP
  
-    x = Dense(64)(x)
+    x = Dense(128)(x)
     x = Activation("relu")(x)
 	# check to see if the regression node should be added
-    x = Dense(32)(x)
+    x = Dense(64)(x)
     x = Activation("relu")(x)
     if regress:
         x = Dense(1, activation="sigmoid")(x)
