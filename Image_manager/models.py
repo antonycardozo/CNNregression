@@ -49,11 +49,12 @@ def create_cnn(width, height, depth, filters=(32, 64, 128, 512), regress=False):
 	# apply another FC layer, this one to match the number of nodes
 	# coming out of the MLP
  
-    x = Dense(128)(x)
-    x = Activation("relu")(x)
-	# check to see if the regression node should be added
     x = Dense(64)(x)
     x = Activation("relu")(x)
+	# check to see if the regression node should be added
+    x = Dense(32)(x)
+    x = Activation("relu")(x)
+    
     if regress:
         x = Dense(1, activation="sigmoid")(x)
 	# construct the CNN
