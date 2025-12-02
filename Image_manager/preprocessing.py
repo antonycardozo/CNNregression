@@ -15,14 +15,6 @@ def apply_mask(images, size=1500):
         images_plus_masks.append(mask)
     return images_plus_masks
 
-def dynamic_cropping(images, low_percentile=30):
-    cropped_images = []
-    
-    for img in images:
-        array_image= np.array(img)
-        value_cropping = np.percentile(array_image, low_percentile)
-        
-    return cropped_images
     
 
 def merge (channel_1, channel_2, height_shape, width_shape):
@@ -67,7 +59,7 @@ def invert_channel(images):
 
     return inverted_images
 
-def log_normalize(images, low_percentile=2, high_percentile=99.99):
+def log_normalize(images, low_percentile=0, high_percentile=100):
     
     normalized_list = []
 
