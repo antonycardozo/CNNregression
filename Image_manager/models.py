@@ -12,7 +12,7 @@ from keras.models import Model
 from keras.layers import GlobalAveragePooling2D, GlobalMaxPooling2D, Concatenate
 
 
-def create_cnn(width, height, depth, filters=(32, 64, 128, 512), regress=False):
+def create_cnn(width, height, depth, filters=(32, 64, 128, 256), regress=False):
 	# initialize the input shape and channel dimension, assuming
 	# TensorFlow/channels-last ordering
     inputShape = (height, width, depth)
@@ -35,18 +35,18 @@ def create_cnn(width, height, depth, filters=(32, 64, 128, 512), regress=False):
     x1 = GlobalAveragePooling2D()(x)
     x2 = GlobalMaxPooling2D()(x)
     x = Concatenate()([x1,x2])
-    x = Dense(512)(x)
+    x = Dense(128)(x)
     x = Activation("relu")(x)
     x = BatchNormalization(axis=chanDim)(x)
     x = Dropout(0.5)(x)
 	# apply another FC layer, this one to match the number of nodes
 	# coming out of the MLP
+
     x = Dense(64)(x)
     x = Activation("relu")(x)
-	# check to see if the regression node should be added
+    
     x = Dense(32)(x)
     x = Activation("relu")(x)
-    
     if regress:
         x = Dense(1, activation="sigmoid")(x)
 	# construct the CNN
