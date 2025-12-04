@@ -48,7 +48,7 @@ def create_cnn(width, height, depth, filters=(32, 64, 128, 256), regress=False):
     x = Dense(32)(x)
     x = Activation("relu")(x)
     if regress:
-        x = Dense(1, activation="sigmoid")(x)
+        x = Dense(1, activation="softplus")(x)
 	# construct the CNN
     model = Model(inputs, x)
 	# return the CNN
